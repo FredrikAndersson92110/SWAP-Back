@@ -10,7 +10,7 @@ const request = require("sync-request");
 const uid2 = require("uid2");
 const bcrypt = require("bcrypt");
 
-//!  HOME SCREEN - en GET
+//!  INTERACTION SCREEN - en GET
 router.get("/get-matches/:token", async (req, res) => {
   console.log("got fetch");
   const { token } = req.params;
@@ -51,6 +51,32 @@ router.get("/get-matches/:token", async (req, res) => {
   }
 });
 
+//!  ASK SCREEN - en GET
+router.get("/get-willing-users/:token", async (req, res) => {
+  console.log("got fetch");
+  const { token } = req.params;
+  //get current User
+  let currentUser = await UserModel.findOne({ token: token });
+
+  let requests = await RequestModel.find({
+    $and: [{ asker: currentUser._id }, { helper: null }],
+  })
+    .populate("asker")
+    .populate("willing_users");
+
+  if (requests != 0) {
+    res.json({
+      status: true,
+      requests: requests,
+    });
+  } else {
+    res.json({
+      status: false,
+      message: "Vous n'avez pas de propsitions pour le moment",
+    });
+  }
+});
+
 //! SUGGESTIONS EN GET
 //
 // ─── /suggestions EN GET ─────────────────────────────────────────────────────────
@@ -86,7 +112,5 @@ router.get("/get-matches/:token", async (req, res) => {
 //
 
 // ADD
-
-
 
 module.exports = router;
