@@ -9,8 +9,9 @@ const request = require("sync-request");
 
 const uid2 = require("uid2");
 const bcrypt = require("bcrypt");
+const { json } = require("express");
 
-//!  HOME SCREEN - en GET
+//!  INTERACTION SCREEN - en GET
 router.get("/get-matches/:token", async (req, res) => {
   console.log("got fetch");
   const { token } = req.params;
@@ -51,6 +52,83 @@ router.get("/get-matches/:token", async (req, res) => {
   }
 });
 
+//!  ASK SCREEN - en GET
+router.get("/get-willing-users/:token", async (req, res) => {
+  console.log("got fetch");
+  const { token } = req.params;
+  //get current User
+  let currentUser = await UserModel.findOne({ token: token });
+
+  let requests = await RequestModel.find({
+    $and: [{ asker: currentUser._id }, { helper: null }],
+  })
+    .populate("asker")
+    .populate("category")
+    .populate("willing_users")
+    .populate("accepted_users")
+    .populate({
+      path: "willing_users",
+      populate: {
+        path: "categories",
+        model: "categories",
+      },
+    });
+
+  if (requests != 0) {
+    res.json({
+      status: true,
+      requests: requests,
+    });
+  } else {
+    res.json({
+      status: false,
+      message: "Vous n'avez pas de propsitions pour le moment",
+    });
+  }
+});
+
+router.delete("/delete-willing-user/:reqId/:token", async (req, res) => {
+  const { reqId, token } = req.params;
+
+  let foundRequest = await RequestModel.findById(reqId).populate(
+    "willing_users"
+  );
+
+  if (foundRequest) {
+    let willing_users = foundRequest.willing_users.filter(
+      (user) => user.token !== token
+    );
+    foundRequest.willing_users = willing_users;
+    let savedRequest = await foundRequest.save();
+    res.json({ status: true, request: savedRequest });
+  } else {
+    res.json({ status: false, request: savedRequestr });
+  }
+});
+
+//! acceptHelper en PUT
+router.put("/accept-helper/:reqId/:token", async (req, res) => {
+  const { reqId, token } = req.params;
+
+  let foundRequest = await RequestModel.findById(reqId)
+    .populate("willing_users")
+    .populate("accepted_users");
+
+  if (foundRequest) {
+    let willing_users = foundRequest.willing_users.filter(
+      (user) => user.token !== token
+    );
+    foundRequest.willing_users = willing_users;
+    let userToAdd = await UserModel.findOne({ token: token });
+    console.log(userToAdd);
+    foundRequest.accepted_users.push(userToAdd._id);
+    let savedRequest = await foundRequest.save();
+    res.json({ status: true, request: savedRequest });
+  } else {
+    res.json({ status: false, request: savedRequest });
+  }
+});
+
 //! SUGGESTIONS EN GET
 //
 // ─── /suggestions EN GET ─────────────────────────────────────────────────────────
@@ -68,12 +146,6 @@ router.get("/get-matches/:token", async (req, res) => {
 // DETAIL SCREEN : Je suis helper, quand je click sur ACCEPTER la demande d'aide côté front ==> fetch pour envoyer
 // mon ID (qui passe de [willing_user] à [accepted_user]
 
-//! acceptHelper en PUT
-//
-// ─── /accept-helper en PUT ─────────────────────────────────────────────────────────
-// DETAIL SCREEN : MAJ du tableau [accepted_user] dans requestSchema, cette route renvoie à interaction screen et step1 transaction.
-// passe de willing_user à accepted_user
-
 //! userByCategory en GET
 //
 // ─── /user-by-category en GET─────────────────────────────────────────────────────────
@@ -86,7 +158,5 @@ router.get("/get-matches/:token", async (req, res) => {
 //
 
 // ADD
-
-
 
 module.exports = router;
