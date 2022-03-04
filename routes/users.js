@@ -92,6 +92,17 @@ router.post("/more-info", async (req, res) => {
   });
 });
 
+//! Mettre à jour les adresses via un numéro de token - en PUT
+router.put('/adress/:token', async (req,res) => {
+  const { token } = req.params;
+  let updateUser = await UserModel.updateOne({ token: token });
+  console.log("result find ==>", updateUser);
+  user.address_street_1 = req.body.address_street_1,
+  user.address_zipcode = req.body.address_zipcode
+  
+  res.json({ user: updateUser });
+})
+
 //Recupérer les infos d'un User grace à un numéro de token
 router.get("/get-user/:token", async (req, res) => {
   const { token } = req.params;
