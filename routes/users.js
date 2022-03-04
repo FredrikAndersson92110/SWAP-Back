@@ -13,22 +13,44 @@ const { findOne } = require("../models/users");
 
 //! SIGN-UP - en POST
 router.post("/sign-up", async (req, res) => {
-  console.log("email :", req.body.email);
+  // console.log("INFOS REÇUES BACK ==> :", req.body);
+  
+  console.log("L27 BACK : EMAIL AVANT SAVE DB", req.body.email);
+  const {
+    firstName,
+    lastName,
+    email,
+    password,
+    birth_date,
+    gender,
+    categories,
+  } = req.body;
 
-  const { firstName, lastName, email, password } = req.body;
   //Allready registered ?
   let foundUser = await UserModel.findOne({ email: email });
 
+  //On passe les catégories de string à array
+  let categoriesArray = categories.split(",");
+  let categories_ID = [];
+
+  //RECHERCHE DES CLES ETRANGERES DES CATEGORIES DANS LA DB
+  for (let i = 0; i < categoriesArray.length; i++) {
+    let foundCategory = await CategoryModel.findOne({
+      category: categoriesArray[i],
+    });
+    //Ajout des clés étrangère dans un tableau pour les enregistrer ensuite sur la DB
+    categories_ID.push(foundCategory._id);
+  }
+console.log("L43 BACK : EMAIL AVANT SAVE DB", email);
+
   if (
-    !foundUser &&
-    firstName !== "undefined" ||
+    (!foundUser && firstName !== "undefined") ||
     lastName !== "undefined" ||
     password !== "undefined"
   ) {
     //Save user
     const saltRounds = 10;
     const hash = bcrypt.hashSync(password, saltRounds);
-
     let newUser = new UserModel({
       token: uid2(32),
       firstName: firstName,
@@ -37,6 +59,9 @@ router.post("/sign-up", async (req, res) => {
       password: hash,
       insert_date: new Date(),
       user_credit: 1,
+      birth_date: birth_date,
+      gender: gender,
+      categories: categories_ID,
     });
     let savedUser = await newUser.save();
     res.json({ status: true, user: savedUser });
@@ -55,7 +80,7 @@ router.post("/sign-up", async (req, res) => {
 //! SIGN-IN - en POST
 router.post("/sign-in", async (req, res) => {
   const { email, password } = req.body;
-  console.log("email", email)
+  console.log("email", email);
   let foundUser = await UserModel.findOne({ email: email });
 
   if (foundUser) {
@@ -122,8 +147,18 @@ router.put('/updateAdress/:token', async(req, res)=> {
 router.get("/get-user/:token", async (req, res) => {
   const { token } = req.params;
   let currentUser = await UserModel.findOne({ token: token });
-  console.log("result find ==>", currentUser);
   res.json({ user: currentUser });
+});
+
+//Vérifie si mail existe déjà
+router.get("/check-email", async (req, res) => {
+
+  let emailExist = await UserModel.findOne({ email: req.query.email });
+  if (emailExist == null) {
+    res.json({ result: false });
+  } else if (emailExist !== null) {
+    res.json({ result: true, message: "Email déjà utilisé" });
+  }
 });
 
 module.exports = router;
