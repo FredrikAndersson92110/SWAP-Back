@@ -14,9 +14,8 @@ const { response } = require("express");
 
 //! SIGN-UP - en POST
 router.post("/sign-up", async (req, res) => {
-  // console.log("INFOS REÇUES BACK ==> :", req.body);
+  console.log("INFOS REÇUES BACK ==> :", req.body);
   
-  console.log("L27 BACK : EMAIL AVANT SAVE DB", req.body.email);
   const {
     firstName,
     lastName,
