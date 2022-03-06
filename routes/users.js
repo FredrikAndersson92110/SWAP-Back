@@ -10,6 +10,7 @@ const request = require("sync-request");
 const uid2 = require("uid2");
 const bcrypt = require("bcrypt");
 const { findOne } = require("../models/users");
+const { response } = require("express");
 
 //! SIGN-UP - en POST
 router.post("/sign-up", async (req, res) => {
@@ -130,14 +131,17 @@ router.post("/more-info", async (req, res) => {
 router.put('/updateAdress/:token', async(req, res)=> {
   
  
-  let result = await UserModel.findOne(req.params.token)
+  let result = await UserModel.findOne({token: req.params.token})
   if (!result) {
     res.status(404).send("data is not found");
   }
   else {
-      result.address_street_1 = req.body.address_street_1;
-      result.address_zipcode = req.body.address_zipcode;
-      result.updateOne();
+    result.userAdresses.address_street_1 = req.body.address_street_1;
+    result.userAdresses.address_zipcode = req.body.address_zipcode;
+      await result.save()
+      res.json(result)
+      
+
   }
 });
 
