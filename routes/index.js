@@ -10,7 +10,7 @@ const request = require("sync-request");
 const uid2 = require("uid2");
 const bcrypt = require("bcrypt");
 const { json } = require("express");
-const { populate } = require("../models/users");
+const { populate, update } = require("../models/users");
 
 //!  INTERACTION SCREEN - en GET
 router.get("/get-matches/:token", async (req, res) => {
@@ -156,16 +156,27 @@ router.get("/match-categories/:token", async (req, res) => {
   }
 });
 
+//! addwilling_user
+router.put("/add-willing-user/:requestId/:token", async (req, res) => {
+  const { requestId, token } = req.params;
+
+  let currentUser = await UserModel.findOne({ token: token });
+
+  if (currentUser) {
+    let updateRequest = await RequestModel.updateOne(
+      { _id: requestId },
+      { $push: { willing_users: currentUser._id } }
+    );
+    res.json({ status: true });
+  } else {
+    res.json({ status: false, message: "une erreur s'est produite" });
+  }
+});
+
 //! SUGGESTIONS EN GET
 //
 // ─── /suggestions EN GET ─────────────────────────────────────────────────────────
 // HOME SCREEN : carroussel du Dashbord. (find sur toutes les categories s=dont les suggestions sont à "true")
-
-//! addwilling_user
-//
-// ─── /add-willing-user en PUT ─────────────────────────────────────────────────────────
-// DETAIL SCREEN : Je suis helper, quand je click sur ACCEPTER la demande d'aide côté front ==> fetch pour envoyer
-// mon ID (qui passe de [willing_user] à [accepted_user]
 
 //! userByCategory en GET
 //
