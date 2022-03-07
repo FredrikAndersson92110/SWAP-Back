@@ -117,26 +117,22 @@ router.post("/more-info", async (req, res) => {
   });
 });
 
-//! Mettre à jour les adresses via un numéro de token - en PUT
-// router.put('/updateAdress/:token', async (req,res) => {
-//   let updateUser = await UserModel.updateOne({token: token});
-//   console.log("result find ==>", updateUser);
-//   user.address_street_1 = req.body.address_street_1,
-//   user.address_zipcode = req.body.address_zipcode
-  
-//   res.json({ user: updateUser });
-// })
+
 
 router.put('/updateAdress/:token', async(req, res)=> {
+  const {token} = req.params;
   
  
-  let result = await UserModel.findOne({token: req.params.token})
+  let result = await UserModel.findOne({token: token})
+  console.log(result)
   if (!result) {
     res.status(404).send("data is not found");
   }
   else {
-    result.userAdresses.address_street_1 = req.body.address_street_1;
-    result.userAdresses.address_zipcode = req.body.address_zipcode;
+    result.userAddresses[0].address_street_1 = req.body.address_street_1;
+    result.userAddresses[0].address_city = req.body.address_city;
+    result.userAddresses[0].address_zipcode = req.body.address_zipcode;
+
       await result.save()
       res.json(result)
       
