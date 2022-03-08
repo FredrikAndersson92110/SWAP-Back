@@ -15,7 +15,7 @@ const { response } = require("express");
 //! SIGN-UP - en POST
 router.post("/sign-up", async (req, res) => {
   console.log("INFOS REÇUES BACK ==> :", req.body);
-  
+
   const {
     firstName,
     lastName,
@@ -41,7 +41,7 @@ router.post("/sign-up", async (req, res) => {
     //Ajout des clés étrangère dans un tableau pour les enregistrer ensuite sur la DB
     categories_ID.push(foundCategory._id);
   }
-console.log("L43 BACK : EMAIL AVANT SAVE DB", email);
+  console.log("L43 BACK : EMAIL AVANT SAVE DB", email);
 
   if (
     (!foundUser && firstName !== "undefined") ||
@@ -83,8 +83,9 @@ router.post("/sign-in", async (req, res) => {
   console.log("email", email);
   let foundUser = await UserModel.findOne({ email: email });
 
+  //TEST
   if (foundUser) {
-    if (bcrypt.compareSync(password, foundUser.password)) {
+    if (password === foundUser.password) {
       res.json({ status: true, user: foundUser });
     } else {
       res.json({ status: false, message: "Mot de passe ou email incorrects" });
@@ -95,6 +96,20 @@ router.post("/sign-in", async (req, res) => {
       message: "Mot de passe ou email incorrects, créer un compte",
     });
   }
+
+  //HASHING
+  // if (foundUser) {
+  //   if (bcrypt.compareSync(password, foundUser.password)) {
+  //     res.json({ status: true, user: foundUser });
+  //   } else {
+  //     res.json({ status: false, message: "Mot de passe ou email incorrects" });
+  //   }
+  // } else {
+  //   res.json({
+  //     status: false,
+  //     message: "Mot de passe ou email incorrects, créer un compte",
+  //   });
+  // }
 });
 
 //! MOREINFO - en POST
@@ -117,30 +132,22 @@ router.post("/more-info", async (req, res) => {
   });
 });
 
+router.put("/updateAdress/:token", async (req, res) => {
+  const { token } = req.params;
 
-
-router.put('/updateAdress/:token', async(req, res)=> {
-  const {token} = req.params;
-  
- 
-  let result = await UserModel.findOne({token: token})
-  console.log(result)
+  let result = await UserModel.findOne({ token: token });
+  console.log(result);
   if (!result) {
     res.status(404).send("data is not found");
-  }
-  else {
+  } else {
     result.userAddresses[0].address_street_1 = req.body.address_street_1;
     result.userAddresses[0].address_city = req.body.address_city;
     result.userAddresses[0].address_zipcode = req.body.address_zipcode;
 
-      await result.save()
-      res.json(result)
-      
-
+    await result.save();
+    res.json(result);
   }
 });
-
-
 
 //Recupérer les infos d'un User grace à un numéro de token
 router.get("/get-user/:token", async (req, res) => {
@@ -151,7 +158,6 @@ router.get("/get-user/:token", async (req, res) => {
 
 //Vérifie si mail existe déjà
 router.get("/check-email", async (req, res) => {
-
   let emailExist = await UserModel.findOne({ email: req.query.email });
   if (emailExist == null) {
     res.json({ result: false });
