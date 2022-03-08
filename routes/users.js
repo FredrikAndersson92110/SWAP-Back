@@ -84,22 +84,8 @@ router.post("/sign-in", async (req, res) => {
   let foundUser = await UserModel.findOne({ email: email });
 
   //TEST
-  if (foundUser) {
-    if (password === foundUser.password) {
-      res.json({ status: true, user: foundUser });
-    } else {
-      res.json({ status: false, message: "Mot de passe ou email incorrects" });
-    }
-  } else {
-    res.json({
-      status: false,
-      message: "Mot de passe ou email incorrects, créer un compte",
-    });
-  }
-
-  //HASHING
   // if (foundUser) {
-  //   if (bcrypt.compareSync(password, foundUser.password)) {
+  //   if (password === foundUser.password) {
   //     res.json({ status: true, user: foundUser });
   //   } else {
   //     res.json({ status: false, message: "Mot de passe ou email incorrects" });
@@ -110,6 +96,20 @@ router.post("/sign-in", async (req, res) => {
   //     message: "Mot de passe ou email incorrects, créer un compte",
   //   });
   // }
+
+  //HASHING
+  if (foundUser) {
+    if (bcrypt.compareSync(password, foundUser.password)) {
+      res.json({ status: true, user: foundUser });
+    } else {
+      res.json({ status: false, message: "Mot de passe ou email incorrects" });
+    }
+  } else {
+    res.json({
+      status: false,
+      message: "Mot de passe ou email incorrects, créer un compte",
+    });
+  }
 });
 
 //! MOREINFO - en POST
