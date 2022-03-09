@@ -14,6 +14,8 @@ const { populate, update } = require("../models/users");
 
 //!  INTERACTION SCREEN - en GET
 router.get("/get-matches/:token", async (req, res) => {
+  console.log("get matches");
+
   const { token } = req.params;
   //get current User
   let currentUser = await UserModel.findOne({ token: token });
@@ -40,9 +42,17 @@ router.get("/get-matches/:token", async (req, res) => {
         path: "conversation_id",
         model: "users",
       },
+    })
+    .populate({
+      path: "conversations.messages",
+      populate: {
+        path: "author",
+        model: "users",
+      },
     });
 
-  if (requests != 0) {
+  if (requests.length !== 0) {
+    console.log(requests);
     res.json({
       status: true,
       requests: requests,
@@ -109,26 +119,58 @@ router.delete("/delete-willing-user/:reqId/:token", async (req, res) => {
 router.put("/accept-helper/:reqId/:token", async (req, res) => {
   const { reqId, token } = req.params;
 
-  let foundRequest = await RequestModel.findById(reqId)
-    .populate("willing_users")
-    .populate("accepted_users");
+  let currentUser = await UserModel.findOne({ token: token });
 
-  if (foundRequest) {
-    let willing_users = foundRequest.willing_users.filter(
-      (user) => user.token !== token
+  if (currentUser) {
+    let removeWilling = await RequestModel.updateMany(
+      { _id: reqId },
+      {
+        $pull: { willing_users: currentUser._id },
+      }
     );
-    foundRequest.willing_users = willing_users;
-    let userToAdd = await UserModel.findOne({ token: token });
-    foundRequest.accepted_users.push(userToAdd._id);
-    console.log(userToAdd._id);
-    foundRequest.conversations.push({
-      conversation_id: userToAdd._id,
-      messages: [],
-    });
-    let savedRequest = await foundRequest.save();
-    res.json({ status: true, request: savedRequest });
+    let updateAccepted = await RequestModel.updateMany(
+      { _id: reqId },
+      {
+        $push: { accepted_users: currentUser._id },
+      }
+    );
+
+    let updateConversation = await RequestModel.updateMany(
+      { _id: reqId },
+      {
+        $push: {
+          conversations: { conversation_id: currentUser._id, messages: [] },
+        },
+      }
+    );
+
+    let foundRequest = await RequestModel.findById(reqId)
+      .populate("asker")
+      .populate("category")
+      .populate("conversations")
+      .populate({
+        path: "conversations",
+        populate: {
+          path: "conversation_id",
+          model: "users",
+        },
+      });
+
+    let foundConversation = foundRequest.conversations.find(
+      (conversation) => conversation.conversation_id.token === token
+    );
+    console.log("FOUNDCONV", foundConversation);
+    let data = {
+      ...foundConversation,
+      category: foundRequest.category,
+      requestId: foundRequest._id,
+      asker: foundRequest.asker,
+      request: foundRequest,
+    };
+
+    res.json({ status: true, request: data });
   } else {
-    res.json({ status: false, request: savedRequest });
+    res.json({ status: false, message: "Oops, cela est dommage..." });
   }
 });
 
@@ -157,30 +199,99 @@ router.get("/match-categories/:token", async (req, res) => {
 
     res.json({ status: true, matchingRequests: requests });
   } else {
-    res.json({ status: false, message: "Vous n'avez pas encore de categorie" });
+    res.json({ status: false, message: "Vous n'avez pas encore de match" });
   }
 });
 
 //! addwilling_user
 router.put("/add-willing-user/:requestId/:token", async (req, res) => {
+  console.log("add willing user");
   const { requestId, token } = req.params;
 
   let currentUser = await UserModel.findOne({ token: token });
 
   if (currentUser) {
-    let updateRequest = await RequestModel.updateMany(
+    let updateWilling = await RequestModel.updateMany(
       { _id: requestId },
       {
         $push: { willing_users: currentUser._id },
+      }
+    );
+
+    let updateConversation = await RequestModel.updateMany(
+      { _id: requestId },
+      {
         $push: {
           conversations: { conversation_id: currentUser._id, messages: [] },
         },
       }
     );
+    let foundRequest = await RequestModel.findById(requestId)
+      .populate("asker")
+      .populate("category")
+      .populate("conversations")
+      .populate({
+        path: "conversations",
+        populate: {
+          path: "conversation_id",
+          model: "users",
+        },
+      });
 
-    res.json({ status: true, request: foundRequest });
+    let foundConversation = foundRequest.conversations.find(
+      (conversation) => conversation.conversation_id._id === currentUser._id
+    );
+    console.log(foundConversation);
+    let data = {
+      ...foundConversation,
+      category: foundRequest.category,
+      requestId: foundRequest._id,
+      asker: foundRequest.asker,
+      request: foundRequest,
+    };
+
+    res.json({ status: true, request: data });
   } else {
     res.json({ status: false, message: "une erreur s'est produite" });
+  }
+});
+
+//get-messages
+
+// add messeges
+router.put("/add-message", async (req, res) => {
+  const { token, requestId, conversationToken, content } = req.body;
+
+  console.log("add message");
+  console.log("data", req.body);
+
+  let currentUser = await UserModel.findOne({ token: token });
+
+  if (currentUser) {
+    let data = {
+      author: currentUser._id,
+      message: content,
+      insert_date: new Date(),
+    };
+
+    let foundRequest = await RequestModel.findById(requestId)
+      .populate("conversations")
+      .populate({
+        path: "conversations",
+        populate: { path: "conversation_id", model: "users" },
+      });
+
+    let foundConversation = foundRequest.conversations.find(
+      (conversation) => conversation.conversation_id.token === conversationToken
+    );
+    foundConversation.messages.push(data);
+    let savedRequest = await foundRequest.save();
+    res.json({ status: true, savedRequest });
+  } else {
+    res.json({
+      status: false,
+      message: "le message n'a pas pu etre enregistre",
+    });
   }
 });
 
