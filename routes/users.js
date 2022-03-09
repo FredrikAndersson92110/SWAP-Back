@@ -41,11 +41,7 @@ router.post("/sign-up", async (req, res) => {
     //Ajout des clés étrangère dans un tableau pour les enregistrer ensuite sur la DB
     categories_ID.push(foundCategory._id);
   }
-<<<<<<< HEAD
-console.log("L43 BACKEND : EMAIL AVANT SAVE DB", email);
-=======
-  console.log("L43 BACK : EMAIL AVANT SAVE DB", email);
->>>>>>> 36c9f77bddb1706c41621c325907d567dfb05357
+  console.log("L43 BACKEND : EMAIL AVANT SAVE DB", email);
 
   if (
     (!foundUser && firstName !== "undefined") ||
