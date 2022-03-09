@@ -10,14 +10,38 @@ const request = require("sync-request");
 const uid2 = require("uid2");
 const bcrypt = require("bcrypt");
 const { findOne } = require("../models/users");
+const { response } = require("express");
 
 //! SIGN-UP - en POST
 router.post("/sign-up", async (req, res) => {
-  console.log("email :", req.body.email);
+  console.log("INFOS REÇUES BACK ==> :", req.body);
 
-  const { firstName, lastName, email, password } = req.body;
+  const {
+    firstName,
+    lastName,
+    email,
+    password,
+    birth_date,
+    gender,
+    categories,
+  } = req.body;
+
   //Allready registered ?
   let foundUser = await UserModel.findOne({ email: email });
+
+  //On passe les catégories de string à array
+  let categoriesArray = categories.split(",");
+  let categories_ID = [];
+
+  //RECHERCHE DES CLES ETRANGERES DES CATEGORIES DANS LA DB
+  for (let i = 0; i < categoriesArray.length; i++) {
+    let foundCategory = await CategoryModel.findOne({
+      category: categoriesArray[i],
+    });
+    //Ajout des clés étrangère dans un tableau pour les enregistrer ensuite sur la DB
+    categories_ID.push(foundCategory._id);
+  }
+  console.log("L43 BACKEND : EMAIL AVANT SAVE DB", email);
 
   if (
     (!foundUser && firstName !== "undefined") ||
@@ -27,7 +51,6 @@ router.post("/sign-up", async (req, res) => {
     //Save user
     const saltRounds = 10;
     const hash = bcrypt.hashSync(password, saltRounds);
-
     let newUser = new UserModel({
       token: uid2(32),
       firstName: firstName,
@@ -36,6 +59,9 @@ router.post("/sign-up", async (req, res) => {
       password: hash,
       insert_date: new Date(),
       user_credit: 1,
+      birth_date: birth_date,
+      gender: gender,
+      categories: categories_ID,
     });
     let savedUser = await newUser.save();
     res.json({ status: true, user: savedUser });
@@ -57,6 +83,21 @@ router.post("/sign-in", async (req, res) => {
   console.log("email", email);
   let foundUser = await UserModel.findOne({ email: email });
 
+  //TEST
+  // if (foundUser) {
+  //   if (password === foundUser.password) {
+  //     res.json({ status: true, user: foundUser });
+  //   } else {
+  //     res.json({ status: false, message: "Mot de passe ou email incorrects" });
+  //   }
+  // } else {
+  //   res.json({
+  //     status: false,
+  //     message: "Mot de passe ou email incorrects, créer un compte",
+  //   });
+  // }
+
+  //HASHING
   if (foundUser) {
     if (bcrypt.compareSync(password, foundUser.password)) {
       res.json({ status: true, user: foundUser });
@@ -91,22 +132,27 @@ router.post("/more-info", async (req, res) => {
   });
 });
 
-//! Mettre à jour les adresses via un numéro de token - en PUT
-router.put("/adress/:token", async (req, res) => {
+router.put("/updateAdress/:token", async (req, res) => {
   const { token } = req.params;
-  let updateUser = await UserModel.updateOne({ token: token });
-  console.log("result find ==>", updateUser);
-  (user.address_street_1 = req.body.address_street_1),
-    (user.address_zipcode = req.body.address_zipcode);
 
-  res.json({ user: updateUser });
+  let result = await UserModel.findOne({ token: token });
+  console.log(result);
+  if (!result) {
+    res.status(404).send("data is not found");
+  } else {
+    result.userAddresses[0].address_street_1 = req.body.address_street_1;
+    result.userAddresses[0].address_city = req.body.address_city;
+    result.userAddresses[0].address_zipcode = req.body.address_zipcode;
+
+    await result.save();
+    res.json(result);
+  }
 });
 
 //Recupérer les infos d'un User grace à un numéro de token
 router.get("/get-user/:token", async (req, res) => {
   const { token } = req.params;
   let currentUser = await UserModel.findOne({ token: token });
-  console.log("result find ==>", currentUser);
   res.json({ user: currentUser });
 });
 
@@ -159,5 +205,15 @@ router.put("/update-status/:request_id/:token", async (req, res) => {
 //   { lastname: "doe"},
 //   { email: "john@doe.fr" }
 // );
+
+//Vérifie si mail existe déjà
+router.get("/check-email", async (req, res) => {
+  let emailExist = await UserModel.findOne({ email: req.query.email });
+  if (emailExist == null) {
+    res.json({ result: false });
+  } else if (emailExist !== null) {
+    res.json({ result: true, message: "Email déjà utilisé" });
+  }
+});
 
 module.exports = router;

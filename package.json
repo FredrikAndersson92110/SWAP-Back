@@ -19,6 +19,7 @@
     "http-errors": "~1.6.3",
     "mongoose": "^6.2.3",
     "morgan": "~1.9.1",
+    "nodemon": "^2.0.15",
     "socket.io": "^4.4.1",
     "sync-request": "^6.1.0",
     "uid2": "^1.0.0"
