@@ -14,9 +14,10 @@ const bcrypt = require("bcrypt");
 router.get("/get-matches/:token", async (req, res) => {
   console.log("got fetch");
   const { token } = req.params;
-  //get current User
+  //get current User grâce au token passé en params
   let currentUser = await UserModel.findOne({ token: token });
 
+  //regarder si l'id de l'utilisateur en cours de session se retrouve dans un document de "requests" de la BDD. Le cas échéant, il y a match.
   let requests = await RequestModel.find({
     $or: [
       { asker: currentUser._id },
@@ -28,7 +29,7 @@ router.get("/get-matches/:token", async (req, res) => {
   })
     .populate("asker")
     .populate("helper")
-    .populate("accepted_users")
+    .populate("selected_users") // avant modif : "accepted_users"
     .populate("willing_users")
     .populate("accepted_users")
     .populate("category")

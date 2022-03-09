@@ -20,8 +20,7 @@ router.post("/sign-up", async (req, res) => {
   let foundUser = await UserModel.findOne({ email: email });
 
   if (
-    !foundUser &&
-    firstName !== "undefined" ||
+    (!foundUser && firstName !== "undefined") ||
     lastName !== "undefined" ||
     password !== "undefined"
   ) {
@@ -55,7 +54,7 @@ router.post("/sign-up", async (req, res) => {
 //! SIGN-IN - en POST
 router.post("/sign-in", async (req, res) => {
   const { email, password } = req.body;
-  console.log("email", email)
+  console.log("email", email);
   let foundUser = await UserModel.findOne({ email: email });
 
   if (foundUser) {
@@ -93,15 +92,15 @@ router.post("/more-info", async (req, res) => {
 });
 
 //! Mettre à jour les adresses via un numéro de token - en PUT
-router.put('/adress/:token', async (req,res) => {
+router.put("/adress/:token", async (req, res) => {
   const { token } = req.params;
   let updateUser = await UserModel.updateOne({ token: token });
   console.log("result find ==>", updateUser);
-  user.address_street_1 = req.body.address_street_1,
-  user.address_zipcode = req.body.address_zipcode
-  
+  (user.address_street_1 = req.body.address_street_1),
+    (user.address_zipcode = req.body.address_zipcode);
+
   res.json({ user: updateUser });
-})
+});
 
 //Recupérer les infos d'un User grace à un numéro de token
 router.get("/get-user/:token", async (req, res) => {
@@ -110,5 +109,55 @@ router.get("/get-user/:token", async (req, res) => {
   console.log("result find ==>", currentUser);
   res.json({ user: currentUser });
 });
+
+//! Mettre à jour les asker_status et helper_status via leur user ID - en PUT
+router.put("/update-status/:request_id/:token", async (req, res) => {
+  const { request_id, token } = req.params;
+
+  let findUser = await UserModel.findOne({ token: token });
+
+
+  if (findUser) {
+    let findRequest = await RequestModel.findById(request_id)
+    .populate("asker")
+    .populate("conversations")
+    .populate({
+      path: "conversations",
+      populate: {
+        path: "conversation_id",
+        model: "users",
+      },
+    });
+    console.log('findrequest:', findRequest)
+    findRequest.asker_status = 1;
+    findRequest.helper_status = 1;
+    findRequest.helper = findUser._id;
+
+    var updated = await findRequest.save();
+
+
+    let foundConversation = findRequest.conversations.find(
+      (conversation) => conversation.conversation_id.token === findUser.token
+    );
+      console.log('foundConversation:', foundConversation)
+    let data = {
+      ...foundConversation,
+      category: updated.category,
+      requestId: updated._id,
+      asker: updated.asker,
+      request: updated,
+    };
+
+    res.json({ status: true, updatedRequest: data });
+  } else {
+    res.json({ status: false, message: "oupsy!" });
+  }
+
+});
+
+// await UserModel.updateOne(
+//   { lastname: "doe"},
+//   { email: "john@doe.fr" }
+// );
 
 module.exports = router;
