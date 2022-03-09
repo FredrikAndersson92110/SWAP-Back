@@ -120,6 +120,11 @@ router.put("/accept-helper/:reqId/:token", async (req, res) => {
     foundRequest.willing_users = willing_users;
     let userToAdd = await UserModel.findOne({ token: token });
     foundRequest.accepted_users.push(userToAdd._id);
+    console.log(userToAdd._id);
+    foundRequest.conversations.push({
+      conversation_id: userToAdd._id,
+      messages: [],
+    });
     let savedRequest = await foundRequest.save();
     res.json({ status: true, request: savedRequest });
   } else {
@@ -163,11 +168,17 @@ router.put("/add-willing-user/:requestId/:token", async (req, res) => {
   let currentUser = await UserModel.findOne({ token: token });
 
   if (currentUser) {
-    let updateRequest = await RequestModel.updateOne(
+    let updateRequest = await RequestModel.updateMany(
       { _id: requestId },
-      { $push: { willing_users: currentUser._id } }
+      {
+        $push: { willing_users: currentUser._id },
+        $push: {
+          conversations: { conversation_id: currentUser._id, messages: [] },
+        },
+      }
     );
-    res.json({ status: true });
+
+    res.json({ status: true, request: foundRequest });
   } else {
     res.json({ status: false, message: "une erreur s'est produite" });
   }
