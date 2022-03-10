@@ -14,8 +14,6 @@ const { populate, update } = require("../models/users");
 
 //!  INTERACTION SCREEN - en GET
 router.get("/get-matches/:token", async (req, res) => {
-  console.log("get matches");
-
   const { token } = req.params;
   //get current User
   let currentUser = await UserModel.findOne({ token: token });
@@ -52,7 +50,6 @@ router.get("/get-matches/:token", async (req, res) => {
     });
 
   if (requests.length !== 0) {
-    console.log(requests);
     res.json({
       status: true,
       requests: requests,
@@ -159,7 +156,6 @@ router.put("/accept-helper/:reqId/:token", async (req, res) => {
     let foundConversation = foundRequest.conversations.find(
       (conversation) => conversation.conversation_id.token === token
     );
-    console.log("FOUNDCONV", foundConversation);
     let data = {
       ...foundConversation,
       category: foundRequest.category,
@@ -205,7 +201,6 @@ router.get("/match-categories/:token", async (req, res) => {
 
 //! addwilling_user
 router.put("/add-willing-user/:requestId/:token", async (req, res) => {
-  console.log("add willing user");
   const { requestId, token } = req.params;
 
   let currentUser = await UserModel.findOne({ token: token });
@@ -241,7 +236,6 @@ router.put("/add-willing-user/:requestId/:token", async (req, res) => {
     let foundConversation = foundRequest.conversations.find(
       (conversation) => conversation.conversation_id._id === currentUser._id
     );
-    console.log(foundConversation);
     let data = {
       ...foundConversation,
       category: foundRequest.category,
@@ -261,9 +255,6 @@ router.put("/add-willing-user/:requestId/:token", async (req, res) => {
 // add messeges
 router.put("/add-message", async (req, res) => {
   const { token, requestId, conversationToken, content } = req.body;
-
-  console.log("add message");
-  console.log("data", req.body);
 
   let currentUser = await UserModel.findOne({ token: token });
 
@@ -301,15 +292,80 @@ router.put("/add-message", async (req, res) => {
 // HOME SCREEN : carroussel du Dashbord. (find sur toutes les categories s=dont les suggestions sont à "true")
 
 //! userByCategory en GET
-//
-// ─── /user-by-category en GET─────────────────────────────────────────────────────────
-// LIST REQUEST SCREEN get user qui correspondent à la catégorie demandée
+router.get("/users-by-category/:category", async (req, res) => {
+  const { category } = req.params;
+
+  let foundCategory = await CategoryModel.findOne({
+    $or: [{ category: category }, { sub_category: category }],
+  });
+
+  if (foundCategory) {
+    let foundUsers = await UserModel.find({
+      categories: foundCategory._id,
+    }).populate("categories");
+
+    res.json({ status: true, foundUsers });
+  } else {
+    res.json({ status: false, message: "Opps, c'est embetant..." });
+  }
+});
 
 //! addRequest en POST
-//
-// ─── /add-requests en POST ─────────────────────────────────────────────────────────
-// pour envoyer les sélections du LIST REQUEST SCREEN en BDD, ajoute personnes sélectionnées dans [selected_users]
-//
+router.post("/add-request", async (req, res) => {
+  const {
+    address_street_1,
+    address_zipcode,
+    address_city,
+    category,
+    description,
+    disponibility,
+    userToken,
+    selectedUsers,
+  } = req.body;
+
+  let foundAsker = await UserModel.findOne({ token: userToken });
+
+  if (foundAsker) {
+    let foundCategory = await CategoryModel.findOne({
+      $or: [{ category: category }, { sub_category: category }],
+    });
+
+    let conversations = [];
+    selectedUsers.forEach((userId) => {
+      conversations.push({
+        conversation_id: userId,
+        messages: [],
+      });
+    });
+
+    let newRequest = new RequestModel({
+      asker_status: 0,
+      helper_status: 0,
+      category: foundCategory._id,
+      description: description,
+      disponibility: disponibility,
+      address: {
+        address_street_1: address_street_1,
+        address_city: address_city,
+        address_zipcode: address_zipcode,
+      },
+      insert_date: new Date(),
+      confirmation_date: null,
+      end_date: null,
+      credit: null,
+      helper: null,
+      asker: foundAsker._id,
+      selected_users: selectedUsers,
+      conversations: conversations,
+    });
+
+    let savedRequest = await newRequest.save();
+
+    res.json({ status: true, savedRequest });
+  } else {
+    res.json({ status: false, message: "Oops, c'est dommage" });
+  }
+});
 
 // ADD
 

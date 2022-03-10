@@ -17,7 +17,11 @@ let requestSchema = mongoose.Schema({
   category: { type: mongoose.Schema.Types.ObjectId, ref: "categories" },
   description: String,
   disponibility: String,
-  address: String,
+  address: {
+    address_street_1: String,
+    address_city: String,
+    address_zipcode: String,
+  },
   insert_date: Date,
   location: String,
   confirmation_date: Date,
