@@ -368,6 +368,46 @@ router.post("/add-request", async (req, res) => {
   }
 });
 
-// ADD
+//! Mettre à jour les asker_status et helper_status via leur user ID - en PUT
+router.put("/update-status/:request_id/:token", async (req, res) => {
+  const { request_id, token } = req.params;
+
+  let findUser = await UserModel.findOne({ token: token });
+
+  if (findUser) {
+    let findRequest = await RequestModel.findById(request_id)
+      .populate("asker")
+      .populate("conversations")
+      .populate({
+        path: "conversations",
+        populate: {
+          path: "conversation_id",
+          model: "users",
+        },
+      });
+    console.log("findrequest:", findRequest);
+    findRequest.asker_status = 1;
+    findRequest.helper_status = 1;
+    findRequest.helper = findUser._id;
+
+    var updated = await findRequest.save();
+
+    let foundConversation = findRequest.conversations.find(
+      (conversation) => conversation.conversation_id.token === findUser.token
+    );
+    console.log("foundConversation:", foundConversation);
+    let data = {
+      ...foundConversation,
+      category: updated.category,
+      requestId: updated._id,
+      asker: updated.asker,
+      request: updated,
+    };
+
+    res.json({ status: true, updatedRequest: data });
+  } else {
+    res.json({ status: false, message: "oupsy!" });
+  }
+});
 
 module.exports = router;
