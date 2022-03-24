@@ -12,6 +12,11 @@ const bcrypt = require("bcrypt");
 const { json } = require("express");
 const { populate, update } = require("../models/users");
 
+//HEROKU WEB PAGE ON https://swapapp-backend.herokuapp.com
+router.get("/", (req, res) => {
+  res.render("index", { title: "SWAP" });
+});
+
 //!  INTERACTION SCREEN - en GET
 router.get("/get-matches/:token", async (req, res) => {
   const { token } = req.params;

@@ -9,12 +9,12 @@ const request = require("sync-request");
 
 const uid2 = require("uid2");
 const bcrypt = require("bcrypt");
-const { findOne } = require("../models/users");
-const { response } = require("express");
+// const { findOne } = require("../models/users");
+// const { response } = require("express");
 
 //! SIGN-UP - en POST
 router.post("/sign-up", async (req, res) => {
-  console.log("INFOS REÇUES BACK ==> :", req.body);
+  // console.log("INFOS REÇUES BACK ==> :", req.body);
 
   const {
     firstName,
@@ -30,22 +30,23 @@ router.post("/sign-up", async (req, res) => {
   let foundUser = await UserModel.findOne({ email: email });
 
   //On passe les catégories de string à array
-  let categoriesArray = categories.split(",");
-  let categories_ID = [];
+  // let categoriesArray = categories.split(",");
+  // let categories_ID = [];
 
-  //RECHERCHE DES CLES ETRANGERES DES CATEGORIES DANS LA DB
-  for (let i = 0; i < categoriesArray.length; i++) {
-    let foundCategory = await CategoryModel.findOne({
-      category: categoriesArray[i],
-    });
-    //Ajout des clés étrangère dans un tableau pour les enregistrer ensuite sur la DB
-    categories_ID.push(foundCategory._id);
-  }
-  console.log("L43 BACKEND : EMAIL AVANT SAVE DB", email);
+  // //RECHERCHE DES CLES ETRANGERES DES CATEGORIES DANS LA DB
+  // for (let i = 0; i < categoriesArray.length; i++) {
+  //   let foundCategory = await CategoryModel.findOne({
+  //     category: categoriesArray[i],
+  //   });
+  //   //Ajout des clés étrangère dans un tableau pour les enregistrer ensuite sur la DB
+  //   categories_ID.push(foundCategory._id);
+  // }
+  // console.log("L43 BACKEND : EMAIL AVANT SAVE DB", email);
 
   if (
-    (!foundUser && firstName !== "undefined") ||
-    lastName !== "undefined" ||
+    !foundUser &&
+    firstName !== "undefined" &&
+    lastName !== "undefined" &&
     password !== "undefined"
   ) {
     //Save user
@@ -61,7 +62,7 @@ router.post("/sign-up", async (req, res) => {
       user_credit: 1,
       birth_date: birth_date,
       gender: gender,
-      categories: categories_ID,
+      // categories: categories_ID,
     });
     let savedUser = await newUser.save();
     res.json({ status: true, user: savedUser });
@@ -155,6 +156,16 @@ router.get("/check-email", async (req, res) => {
   } else if (emailExist !== null) {
     res.json({ result: true, message: "Email déjà utilisé" });
   }
+});
+
+router.get("/test", (req, res) => {
+  res.json({ status: true, message: "pass!" });
+});
+
+router.post("/test", (req, res) => {
+  let firstName = req.body.firstName;
+
+  res.json({ nom: firstName });
 });
 
 module.exports = router;
