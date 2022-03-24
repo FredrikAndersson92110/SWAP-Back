@@ -41,11 +41,6 @@ router.post("/sign-up", async (req, res) => {
     //Ajout des clés étrangère dans un tableau pour les enregistrer ensuite sur la DB
     categories_ID.push(foundCategory._id);
   }
-<<<<<<< HEAD
-console.log("L43 BACKEND : EMAIL AVANT SAVE DB", email);
-=======
-  console.log("L43 BACK : EMAIL AVANT SAVE DB", email);
->>>>>>> 36c9f77bddb1706c41621c325907d567dfb05357
 
   if (
     (!foundUser && firstName !== "undefined") ||
@@ -87,25 +82,12 @@ router.post("/sign-in", async (req, res) => {
   console.log("email", email);
   let foundUser = await UserModel.findOne({ email: email });
 
-  //TEST
-  // if (foundUser) {
-  //   if (password === foundUser.password) {
-  //     res.json({ status: true, user: foundUser });
-  //   } else {
-  //     res.json({ status: false, message: "Mot de passe ou email incorrects" });
-  //   }
-  // } else {
-  //   res.json({
-  //     status: false,
-  //     message: "Mot de passe ou email incorrects, créer un compte",
-  //   });
-  // }
-
   //HASHING
   if (foundUser) {
     if (bcrypt.compareSync(password, foundUser.password)) {
       res.json({ status: true, user: foundUser });
     } else {
+
       res.json({ status: false, message: "Mot de passe ou email incorrects" });
     }
   } else {
@@ -136,6 +118,7 @@ router.post("/more-info", async (req, res) => {
   });
 });
 
+//! updateAdress - en PUT
 router.put("/updateAdress/:token", async (req, res) => {
   const { token } = req.params;
 
@@ -153,6 +136,7 @@ router.put("/updateAdress/:token", async (req, res) => {
   }
 });
 
+//! GET-USER - en GET
 //Recupérer les infos d'un User grace à un numéro de token
 router.get("/get-user/:token", async (req, res) => {
   const { token } = req.params;
@@ -160,6 +144,7 @@ router.get("/get-user/:token", async (req, res) => {
   res.json({ user: currentUser });
 });
 
+//! CHECK-EMAIL - en GET
 //Vérifie si mail existe déjà
 router.get("/check-email", async (req, res) => {
   let emailExist = await UserModel.findOne({ email: req.query.email });

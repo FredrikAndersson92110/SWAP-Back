@@ -43,6 +43,7 @@ router.get("/get-matches/:token", async (req, res) => {
     });
 
   if (requests != 0) {
+    console.log("-------BACK END---------", requests)
     res.json({
       status: true,
       requests: requests,
@@ -154,6 +155,7 @@ router.get("/match-categories/:token", async (req, res) => {
           model: "categories",
         },
       });
+
 
     res.json({ status: true, matchingRequests: requests });
   } else {
