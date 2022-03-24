@@ -15,9 +15,10 @@ const { populate, update } = require("../models/users");
 //!  INTERACTION SCREEN - en GET
 router.get("/get-matches/:token", async (req, res) => {
   const { token } = req.params;
-  //get current User
+  //get current User grâce au token passé en params
   let currentUser = await UserModel.findOne({ token: token });
 
+  //regarder si l'id de l'utilisateur en cours de session se retrouve dans un document de "requests" de la BDD. Le cas échéant, il y a match.
   let requests = await RequestModel.find({
     $or: [
       { asker: currentUser._id },
@@ -29,7 +30,7 @@ router.get("/get-matches/:token", async (req, res) => {
   })
     .populate("asker")
     .populate("helper")
-    .populate("accepted_users")
+    .populate("selected_users") // avant modif : "accepted_users"
     .populate("willing_users")
     .populate("accepted_users")
     .populate("category")
@@ -40,10 +41,16 @@ router.get("/get-matches/:token", async (req, res) => {
         path: "conversation_id",
         model: "users",
       },
+    })
+    .populate({
+      path: "conversations.messages",
+      populate: {
+        path: "author",
+        model: "users",
+      },
     });
 
-  if (requests != 0) {
-    console.log("-------BACK END---------", requests)
+  if (requests.length !== 0) {
     res.json({
       status: true,
       requests: requests,
@@ -110,26 +117,57 @@ router.delete("/delete-willing-user/:reqId/:token", async (req, res) => {
 router.put("/accept-helper/:reqId/:token", async (req, res) => {
   const { reqId, token } = req.params;
 
-  let foundRequest = await RequestModel.findById(reqId)
-    .populate("willing_users")
-    .populate("accepted_users");
+  let currentUser = await UserModel.findOne({ token: token });
 
-  if (foundRequest) {
-    let willing_users = foundRequest.willing_users.filter(
-      (user) => user.token !== token
+  if (currentUser) {
+    let removeWilling = await RequestModel.updateMany(
+      { _id: reqId },
+      {
+        $pull: { willing_users: currentUser._id },
+      }
     );
-    foundRequest.willing_users = willing_users;
-    let userToAdd = await UserModel.findOne({ token: token });
-    foundRequest.accepted_users.push(userToAdd._id);
-    console.log(userToAdd._id);
-    foundRequest.conversations.push({
-      conversation_id: userToAdd._id,
-      messages: [],
-    });
-    let savedRequest = await foundRequest.save();
-    res.json({ status: true, request: savedRequest });
+    let updateAccepted = await RequestModel.updateMany(
+      { _id: reqId },
+      {
+        $push: { accepted_users: currentUser._id },
+      }
+    );
+
+    let updateConversation = await RequestModel.updateMany(
+      { _id: reqId },
+      {
+        $push: {
+          conversations: { conversation_id: currentUser._id, messages: [] },
+        },
+      }
+    );
+
+    let foundRequest = await RequestModel.findById(reqId)
+      .populate("asker")
+      .populate("category")
+      .populate("conversations")
+      .populate({
+        path: "conversations",
+        populate: {
+          path: "conversation_id",
+          model: "users",
+        },
+      });
+
+    let foundConversation = foundRequest.conversations.find(
+      (conversation) => conversation.conversation_id.token === token
+    );
+    let data = {
+      ...foundConversation,
+      category: foundRequest.category,
+      requestId: foundRequest._id,
+      asker: foundRequest.asker,
+      request: foundRequest,
+    };
+
+    res.json({ status: true, request: data });
   } else {
-    res.json({ status: false, request: savedRequest });
+    res.json({ status: false, message: "Oops, cela est dommage..." });
   }
 });
 
@@ -159,7 +197,7 @@ router.get("/match-categories/:token", async (req, res) => {
 
     res.json({ status: true, matchingRequests: requests });
   } else {
-    res.json({ status: false, message: "Vous n'avez pas encore de categorie" });
+    res.json({ status: false, message: "Vous n'avez pas encore de match" });
   }
 });
 
@@ -170,19 +208,83 @@ router.put("/add-willing-user/:requestId/:token", async (req, res) => {
   let currentUser = await UserModel.findOne({ token: token });
 
   if (currentUser) {
-    let updateRequest = await RequestModel.updateMany(
+    let updateWilling = await RequestModel.updateMany(
       { _id: requestId },
       {
         $push: { willing_users: currentUser._id },
+      }
+    );
+
+    let updateConversation = await RequestModel.updateMany(
+      { _id: requestId },
+      {
         $push: {
           conversations: { conversation_id: currentUser._id, messages: [] },
         },
       }
     );
+    let foundRequest = await RequestModel.findById(requestId)
+      .populate("asker")
+      .populate("category")
+      .populate("conversations")
+      .populate({
+        path: "conversations",
+        populate: {
+          path: "conversation_id",
+          model: "users",
+        },
+      });
 
-    res.json({ status: true, request: foundRequest });
+    let foundConversation = foundRequest.conversations.find(
+      (conversation) => conversation.conversation_id._id === currentUser._id
+    );
+    let data = {
+      ...foundConversation,
+      category: foundRequest.category,
+      requestId: foundRequest._id,
+      asker: foundRequest.asker,
+      request: foundRequest,
+    };
+
+    res.json({ status: true, request: data });
   } else {
     res.json({ status: false, message: "une erreur s'est produite" });
+  }
+});
+
+//get-messages
+
+// add messeges
+router.put("/add-message", async (req, res) => {
+  const { token, requestId, conversationToken, content } = req.body;
+
+  let currentUser = await UserModel.findOne({ token: token });
+
+  if (currentUser) {
+    let data = {
+      author: currentUser._id,
+      message: content,
+      insert_date: new Date(),
+    };
+
+    let foundRequest = await RequestModel.findById(requestId)
+      .populate("conversations")
+      .populate({
+        path: "conversations",
+        populate: { path: "conversation_id", model: "users" },
+      });
+
+    let foundConversation = foundRequest.conversations.find(
+      (conversation) => conversation.conversation_id.token === conversationToken
+    );
+    foundConversation.messages.push(data);
+    let savedRequest = await foundRequest.save();
+    res.json({ status: true, savedRequest });
+  } else {
+    res.json({
+      status: false,
+      message: "le message n'a pas pu etre enregistre",
+    });
   }
 });
 
@@ -192,16 +294,121 @@ router.put("/add-willing-user/:requestId/:token", async (req, res) => {
 // HOME SCREEN : carroussel du Dashbord. (find sur toutes les categories s=dont les suggestions sont à "true")
 
 //! userByCategory en GET
-//
-// ─── /user-by-category en GET─────────────────────────────────────────────────────────
-// LIST REQUEST SCREEN get user qui correspondent à la catégorie demandée
+router.get("/users-by-category/:category", async (req, res) => {
+  const { category } = req.params;
+
+  let foundCategory = await CategoryModel.findOne({
+    $or: [{ category: category }, { sub_category: category }],
+  });
+
+  if (foundCategory) {
+    let foundUsers = await UserModel.find({
+      categories: foundCategory._id,
+    }).populate("categories");
+
+    res.json({ status: true, foundUsers });
+  } else {
+    res.json({ status: false, message: "Opps, c'est embetant..." });
+  }
+});
 
 //! addRequest en POST
-//
-// ─── /add-requests en POST ─────────────────────────────────────────────────────────
-// pour envoyer les sélections du LIST REQUEST SCREEN en BDD, ajoute personnes sélectionnées dans [selected_users]
-//
+router.post("/add-request", async (req, res) => {
+  const {
+    address_street_1,
+    address_zipcode,
+    address_city,
+    category,
+    description,
+    disponibility,
+    userToken,
+    selectedUsers,
+  } = req.body;
 
-// ADD
+  let foundAsker = await UserModel.findOne({ token: userToken });
+
+  if (foundAsker) {
+    let foundCategory = await CategoryModel.findOne({
+      $or: [{ category: category }, { sub_category: category }],
+    });
+
+    let conversations = [];
+    selectedUsers.forEach((userId) => {
+      conversations.push({
+        conversation_id: userId,
+        messages: [],
+      });
+    });
+
+    let newRequest = new RequestModel({
+      asker_status: 0,
+      helper_status: 0,
+      category: foundCategory._id,
+      description: description,
+      disponibility: disponibility,
+      address: {
+        address_street_1: address_street_1,
+        address_city: address_city,
+        address_zipcode: address_zipcode,
+      },
+      insert_date: new Date(),
+      confirmation_date: null,
+      end_date: null,
+      credit: null,
+      helper: null,
+      asker: foundAsker._id,
+      selected_users: selectedUsers,
+      conversations: conversations,
+    });
+
+    let savedRequest = await newRequest.save();
+
+    res.json({ status: true, savedRequest });
+  } else {
+    res.json({ status: false, message: "Oops, c'est dommage" });
+  }
+});
+
+//! Mettre à jour les asker_status et helper_status via leur user ID - en PUT
+router.put("/update-status/:request_id/:token", async (req, res) => {
+  const { request_id, token } = req.params;
+
+  let findUser = await UserModel.findOne({ token: token });
+
+  if (findUser) {
+    let findRequest = await RequestModel.findById(request_id)
+      .populate("asker")
+      .populate("conversations")
+      .populate({
+        path: "conversations",
+        populate: {
+          path: "conversation_id",
+          model: "users",
+        },
+      });
+    console.log("findrequest:", findRequest);
+    findRequest.asker_status = 1;
+    findRequest.helper_status = 1;
+    findRequest.helper = findUser._id;
+
+    var updated = await findRequest.save();
+
+    let foundConversation = findRequest.conversations.find(
+      (conversation) => conversation.conversation_id.token === findUser.token
+    );
+    console.log("foundConversation:", foundConversation);
+    let data = {
+      ...foundConversation,
+      category: updated.category,
+      requestId: updated._id,
+      asker: updated.asker,
+      request: updated,
+    };
+
+    res.json({ status: true, updatedRequest: data });
+  } else {
+    res.json({ status: false, message: "oupsy!" });
+  }
+});
 
 module.exports = router;
